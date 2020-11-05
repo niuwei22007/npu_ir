@@ -61,24 +61,40 @@ bool BuildConvTransposeGraph(ge::Graph &graph) {
     data.update_input_desc_x(inputDesc);
 
     string deconvName = "deconvolution";
-    auto deconvOp = hiai::op::ConvTranspose(deconvName).set_input_x(data);
-    auto deconvFilter = hiai::op::Const(deconvName + "_filter");
-    auto deconvBias = hiai::op::Const(deconvName + "_bias");
+    auto deconvOp = hiai::op::ConvTranspose(deconvName);
+    auto filter = hiai::op::Const(deconvName + "_filter");
+    auto bias = hiai::op::Const(deconvName + "_bias");
     auto outputShape = hiai::op::Const(deconvName + "_output");
     {
         hiai::TensorDesc outDesc(ge::Shape({4}), ge::FORMAT_NCHW, ge::DT_INT32);
         std::vector<int32_t> outShapeValue{
                 (int32_t) inputDesc.GetShape().GetDim(0),
-                (int32_t) inputDesc.GetShape().GetDim(3),
-                (int32_t) inputDesc.GetShape().GetDim(1) * 2,
-                (int32_t) inputDesc.GetShape().GetDim(2) * 3,
+                (int32_t) inputDesc.GetShape().GetDim(1),
+                (int32_t) inputDesc.GetShape().GetDim(2) * 2,
+                (int32_t) inputDesc.GetShape().GetDim(3) * 2,
         };
         SetConstData(outputShape, outDesc, (uint8_t *) outShapeValue.data(), outShapeValue.size() * sizeof(uint32_t));
 
-        deconvOp.set_input_output_shape(outputShape);
-        hiai::Shape deconvFilterShape = ge::Shape({8, 1, 4, 4});
-        hiai::Shape deconvBiasShape = ge::Shape({1, 1, 1, 1});
-        SetConvTranspose(deconvName, deconvOp, deconvFilter, deconvFilterShape, deconvBias, deconvBiasShape);
+        hiai::Shape filterShape = ge::Shape({8, 1, 4, 4});
+        hiai::Shape biasShape = ge::Shape({1, 1, 1, 1});
+
+        hiai::TensorDesc convWeightDesc(filterShape, ge::FORMAT_NCHW, ge::DT_FLOAT);
+        vector<float> convWeightValue(Prod(filterShape.GetDims()), 1);
+        SetConstData(filter, convWeightDesc, (uint8_t *) convWeightValue.data(),
+                     convWeightValue.size() * sizeof(float));
+
+        hiai::TensorDesc convBiasDesc(biasShape, ge::FORMAT_NCHW, ge::DT_FLOAT);
+        vector<float> convBiasValue(Prod(biasShape.GetDims()), 1);
+        SetConstData(bias, convBiasDesc, (uint8_t *) convBiasValue.data(), convBiasValue.size() * sizeof(float));
+
+        deconvOp.set_input_output_shape(outputShape)
+                .set_input_filter(filter)
+                .set_input_x(data)
+                .set_attr_dilations({1, 1})
+                .set_attr_strides({2, 2})
+                .set_attr_groups(1)
+                .set_attr_pad_mode("SAME")
+                .set_attr_pads({0, 0, 0, 0});
     }
 
     std::vector<ge::Operator> inputs{data};
