@@ -16,4 +16,4 @@ add_library(
         SHARED
         ${SRC0}
         ${SRC1}
-        jni/test_contains_npu.cpp)
+        jni/test_contains_npu.cpp jni/test_single_op.cpp jni/test_util.h)

@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_MODULE := test
-LOCAL_SRC_FILES := test_contains_npu.cpp
+LOCAL_SRC_FILES := test_single_op.cpp
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../ddk/ai_ddk_lib/include \
 					$(LOCAL_PATH)/../dkk/ai_ddk_lib/include/graph \
 					$(LOCAL_PATH)/ \
