@@ -54,13 +54,46 @@ bool BuildSqrtGraph(ge::Graph &graph) {
     graph.SetInputs(inputs).SetOutputs(outputs);
     return true;
 }
+
+bool BuildConvTransposeGraph(ge::Graph &graph) {
+    auto data = ge::op::Data("data");
+    ge::TensorDesc inputDesc(ge::Shape({1, 8, 864, 480}));
+    data.update_input_desc_x(inputDesc);
+
+    string deconvName = "deconvolution";
+    auto deconvOp = hiai::op::ConvTranspose(deconvName).set_input_x(data);
+    auto deconvFilter = hiai::op::Const(deconvName + "_filter");
+    auto deconvBias = hiai::op::Const(deconvName + "_bias");
+    auto outputShape = hiai::op::Const(deconvName + "_output");
+    {
+        hiai::TensorDesc outDesc(ge::Shape({4}), ge::FORMAT_NCHW, ge::DT_INT32);
+        std::vector<int32_t> outShapeValue{
+                (int32_t) inputDesc.GetShape().GetDim(0),
+                (int32_t) inputDesc.GetShape().GetDim(3),
+                (int32_t) inputDesc.GetShape().GetDim(1) * 2,
+                (int32_t) inputDesc.GetShape().GetDim(2) * 3,
+        };
+        SetConstData(outputShape, outDesc, (uint8_t *) outShapeValue.data(), outShapeValue.size() * sizeof(uint32_t));
+
+        deconvOp.set_input_output_shape(outputShape);
+        hiai::Shape deconvFilterShape = ge::Shape({8, 1, 4, 4});
+        hiai::Shape deconvBiasShape = ge::Shape({1, 1, 1, 1});
+        SetConvTranspose(deconvName, deconvOp, deconvFilter, deconvFilterShape, deconvBias, deconvBiasShape);
+    }
+
+    std::vector<ge::Operator> inputs{data};
+    std::vector<ge::Operator> outputs{deconvOp};
+    graph.SetInputs(inputs).SetOutputs(outputs);
+    return true;
+}
 }
 
 using namespace testcase;
 
 int main(int argc, char *argv[]) {
     TestCase caseList[] = {
-            {"bytenn_arch29", BuildSqrtGraph, false},
+//            {"sqrt_ir",          BuildSqrtGraph,          false},
+            {"convtranspose_ir", BuildConvTransposeGraph, false},
     };
     for (const TestCase &tc : caseList) {
         Test(tc);

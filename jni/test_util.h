@@ -264,4 +264,39 @@ std::shared_ptr<hiai::AiModelMngerClient> Build(
     return client;
 }
 
+int Prod(const std::vector<int64_t> &list) {
+    int prod = 1;
+    for (auto s: list) {
+        prod *= s;
+    }
+    return prod;
+}
+
+void SetConstData(hiai::op::Const &constOp, const hiai::TensorDesc &wDesc, uint8_t *data, size_t dataSize) {
+    hiai::TensorPtr weight = std::make_shared<hiai::Tensor>();
+    weight->SetTensorDesc(wDesc);
+    weight->SetData(data, dataSize);
+    constOp.set_attr_value(weight);
+}
+
+void SetConvTranspose(string &name, hiai::op::ConvTranspose &deconv, hiai::op::Const &filter,
+                      const hiai::Shape &filterShape, hiai::op::Const &bias, const hiai::Shape &biasShape) {
+    hiai::TensorDesc convWeightDesc(filterShape, ge::FORMAT_NCHW, ge::DT_FLOAT);
+    vector<float> convWeightValue(Prod(filterShape.GetDims()), 1);
+    SetConstData(filter, convWeightDesc, (uint8_t *) convWeightValue.data(), convWeightValue.size() * sizeof(float));
+
+    hiai::TensorDesc convBiasDesc(biasShape, ge::FORMAT_NCHW, ge::DT_FLOAT);
+    vector<float> convBiasValue(Prod(biasShape.GetDims()), 1);
+    SetConstData(bias, convBiasDesc, (uint8_t *) convBiasValue.data(), convBiasValue.size() * sizeof(float));
+
+    deconv.set_input_filter(filter)
+            .set_input_bias(bias)
+            .set_attr_dilations({1, 1})
+            .set_attr_strides({2, 2})
+            .set_attr_groups(1)
+            .set_attr_pad_mode("SPECIFIC")
+            .set_attr_pads({0, 0, 0, 0});
+}
+
+
 #endif //BUILD_IR_MODEL_TEST_UTIL_H
