@@ -31,11 +31,11 @@ void Test(const TestCase &test) {
         return;
     }
     PrintTensorData<float>(inputTensors[0], 0, 32);
-//    int i = 0;
-//    for (const shared_ptr<hiai::AiTensor> &tensor : outputTensors) {
-//        PrintTensorData<float>(tensor, 0, 32);
-//        SaveTensorData<float>(tensor, "/data/local/tmp/output/output_" + to_string(i++) + ".bin");
-//    }
+    int i = 0;
+    for (const shared_ptr<hiai::AiTensor> &tensor : outputTensors) {
+        PrintTensorData<float>(tensor, 0, 32);
+        SaveTensorData<float>(tensor, "/data/local/tmp/output/output_" + to_string(i++) + ".bin");
+    }
     cout << "-------------" << test.caseName << " -------- " << CheckResult() << endl;
 }
 

@@ -89,7 +89,7 @@ void SaveTensorData(const std::shared_ptr<hiai::AiTensor> &tensor, const std::st
     auto num = size / sizeof(T);
     auto ptr = (T *) tensor->GetBuffer();
     WriteFile(ptr, size, path);
-    ALOGI("save tensor %p size: %d, num: %d\n", tensor, size, num);
+    ALOGI("save tensor size: %u, num: %lu\n", size, num);
 }
 
 template<typename T>
