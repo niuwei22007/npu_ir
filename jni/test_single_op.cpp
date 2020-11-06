@@ -102,6 +102,30 @@ bool BuildConvTransposeGraph(ge::Graph &graph) {
     graph.SetInputs(inputs).SetOutputs(outputs);
     return true;
 }
+
+bool BuildResizeBilinearGraph(ge::Graph &graph) {
+    auto data = ge::op::Data("data");
+    ge::TensorDesc inputDesc(ge::Shape({1, 32, 192, 192}));
+    data.update_input_desc_x(inputDesc);
+
+    auto outputShape = hiai::op::Const("resize_v2_output");
+    {
+        hiai::TensorDesc outDesc(ge::Shape({2}), ge::FORMAT_NCHW, ge::DT_INT32);
+        std::vector<int32_t> outShapeValue{384, 384};
+        SetConstData(outputShape, outDesc, (uint8_t *) outShapeValue.data(), outShapeValue.size() * sizeof(uint32_t));
+    }
+    auto resize = hiai::op::ResizeBilinearV2("resize_v2")
+            .set_input_x(data)
+            .set_input_size(outputShape)
+            .set_attr_align_corners(false)
+            .set_attr_half_pixel_centers(true);
+
+
+    std::vector<ge::Operator> inputs{data};
+    std::vector<ge::Operator> outputs{resize};
+    graph.SetInputs(inputs).SetOutputs(outputs);
+    return true;
+}
 }
 
 using namespace testcase;
@@ -109,7 +133,8 @@ using namespace testcase;
 int main(int argc, char *argv[]) {
     TestCase caseList[] = {
 //            {"sqrt_ir",          BuildSqrtGraph,          false},
-            {"convtranspose_ir", BuildConvTransposeGraph, false},
+//            {"convtranspose_ir", BuildConvTransposeGraph, false},
+            {"resizebilinearv2_ir", BuildResizeBilinearGraph, false},
     };
     for (const TestCase &tc : caseList) {
         Test(tc);
