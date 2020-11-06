@@ -40,8 +40,16 @@ struct TestCase {
     std::string caseName;
     TestFunc func;
     bool inputFromFile;
-    uint32_t inputH = 0;
-    uint32_t inputW = 0;
+    uint32_t inputH;
+    uint32_t inputW;
+
+    TestCase(const string &name, TestFunc f, bool input, uint32_t h = 0, uint32_t w = 0) {
+        this->caseName = name;
+        this->func = f;
+        this->inputFromFile = input;
+        this->inputH = h;
+        this->inputW = w;
+    }
 };
 
 bool WriteFile(const void *data, size_t size, const std::string &path) {
