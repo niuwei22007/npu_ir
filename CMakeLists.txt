@@ -7,7 +7,7 @@ include_directories(
         ${PROJECT_SOURCE_DIR}/jni
         ${PROJECT_SOURCE_DIR}/ddk/ai_ddk_lib/include
         ${PROJECT_SOURCE_DIR}/ddk/ai_ddk_lib/include/graph
-        ${PROJECT_SOURCE_DIR}/../../opt/android-ndk-r20b/sysroot/usr/include
+        $ENV{NDK_PATH}/sysroot/usr/include
 )
 
 file(GLOB SRC0 "${PROJECT_SOURCE_DIR}/jni/*.cpp")

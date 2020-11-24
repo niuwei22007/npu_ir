@@ -11,7 +11,11 @@
 #include <vector>
 #include <iostream>
 #include <random>
+#include <unordered_map>
+#include <array>
+#include <sstream>
 #include <android/log.h>
+#include <sys/system_properties.h>
 
 #include "hiai_ir_build.h"
 #include "HiAiModelManagerService.h"
@@ -197,7 +201,8 @@ bool RunModel(const std::shared_ptr<hiai::AiModelMngerClient> &client, const std
         count += inferenceTime[i];
         if (inferenceTime[i] > max) {
             max = inferenceTime[i];
-        } else if (inferenceTime[i] < min) {
+        }
+        if (inferenceTime[i] < min) {
             min = inferenceTime[i];
         }
         ALOGI("index: %d, time: %.3f\n", i, inferenceTime[i]);

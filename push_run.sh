@@ -1,5 +1,9 @@
 adb remount
 adb logcat -c
+adb shell "getprop | grep hiaiversion"
+adb shell "getprop | grep ro.product.vendor.device"
+adb shell "getprop | grep ro.product.board"
+adb shell "getprop | grep persist.sys.hiview.base_version"
 adb shell "rm -fr /data/local/tmp/*"
 
 rm -fr android_logs
