@@ -214,7 +214,7 @@ int main(int argc, char* argv[]) {
     }
     ALOGE("=========== RUN Check ===========\n");
     bool supportResize = testcheck::SupportResizeBilinearHalfPixel();
-    ALOGE("Current Device %s support high performance ResizeBilinear with half_pixel!",
+    ALOGE("Current Device %s support high performance ResizeBilinear with half_pixel!\n",
           (supportResize ? "" : "not"));
     ALOGE("=========== ALL DONE ===========\n");
     return 0;
