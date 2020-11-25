@@ -18,6 +18,7 @@ static unordered_map<string, array<int, VERSION_LEN>> g_supportedEMUI{
 
 static array<char, PROP_VALUE_MAX> g_board{0};
 static array<char, PROP_VALUE_MAX> g_baseVersion{0};
+static array<char, PROP_VALUE_MAX> g_hiaiversion{0};
 
 void ShowInfo() {
     string board(g_board.data());
@@ -34,6 +35,15 @@ bool GetEMUIInfo() {
     }
     if (g_baseVersion[0] == 0) {
         if (__system_property_get("persist.sys.hiview.base_version", g_baseVersion.data()) <= 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool GetHiaiVersion() {
+    if (g_hiaiversion[0] == 0) {
+        if (__system_property_get("ro.vendor.hiaiversion", g_hiaiversion.data()) <= 0) {
             return false;
         }
     }
@@ -79,8 +89,59 @@ bool SupportResizeBilinearHalfPixel() {
     return CheckResizeBilinearHalfPixel(board, baseVersion);
 }
 
+vector<string> Split(const string& s, char delimiter) {
+    vector<string> tokens;
+    string token;
+    istringstream tokenStream(s);
+    while (getline(tokenStream, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+bool Check() {
+    if (!GetHiaiVersion()) {
+        cout << "Get HiaiVersion failed." << endl;
+        return false;
+    }
+    string hiaiversion(g_hiaiversion.data());
+    vector<string> versionSplit = Split(hiaiversion, '.');
+    bool torchSupport = false;
+    // 若100.320开头，则
+    //     若第3段 == 010，则第4段需要 ≥ 024
+    //     若第3段 == 011，则第4段需要 ≥ 020
+    //     若第3段 == 012，则第4段需要 ≥ 012
+    // 若100.330或100.500开头，则只需要判断第4段需要 ≥ 012
+    // 其他是不含NPU的场景。解释：含NPU的版本号是100.320、100.330、100.500开头的
+    if (versionSplit[0].compare("100") == 0 && versionSplit[1].compare("320") == 0) {
+        if (versionSplit[2].compare("010") == 0) {
+            if (versionSplit[3].compare("024") >= 0) {
+                torchSupport = true;
+            }
+        } else if (versionSplit[2].compare("011") == 0) {
+            if (versionSplit[3].compare("020") >= 0) {
+                torchSupport = true;
+            }
+        } else if (versionSplit[2].compare("012") == 0) {
+            if (versionSplit[3].compare("012") >= 0) {
+                torchSupport = true;
+            }
+        }
+    } else if ((versionSplit[0].compare("100") == 0 && versionSplit[1].compare("330") == 0) ||
+               (versionSplit[0].compare("100") == 0 && versionSplit[1].compare("500") == 0)) {
+        if (versionSplit[3].compare("012") >= 0) {
+            torchSupport = true;
+        }
+    }
+    if (!torchSupport) {
+        //for another try for specific EMUI
+        torchSupport = SupportResizeBilinearHalfPixel();
+    }
+    return torchSupport;
+}
+
 int main(int argc, char* argv[]) {
-    bool supported = SupportResizeBilinearHalfPixel();
+    bool supported = Check();
     cout << "This device"
          << (supported ? " " : " not ")
          << "support high performance ResizeBilinear with half_pixel!"
