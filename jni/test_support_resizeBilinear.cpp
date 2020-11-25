@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 using namespace std;
+namespace hiaicheck {
 static const int VERSION_LEN = 4;
 static unordered_map<string, array<int, VERSION_LEN>> g_supportedEMUI{
     {"TAS", {11, 0, 0, 145}}, // M30
@@ -139,11 +140,12 @@ bool Check() {
     }
     return torchSupport;
 }
-
-int main(int argc, char* argv[]) {
-    bool supported = Check();
-    cout << "This device"
-         << (supported ? " " : " not ")
-         << "support high performance ResizeBilinear with half_pixel!"
-         << endl;
 }
+
+// int main(int argc, char* argv[]) {
+//     bool supported = hiaicheck::Check();
+//     cout << "This device"
+//          << (supported ? " " : " not ")
+//          << "support high performance ResizeBilinear with half_pixel!"
+//          << endl;
+// }
