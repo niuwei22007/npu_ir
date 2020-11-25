@@ -47,7 +47,7 @@ bool CheckResizeBilinearHalfPixel(const string& board, string& baseVersion) {
     // 去掉首尾空格
     baseVersion.erase(0, baseVersion.find_first_not_of(' '));
     baseVersion.erase(baseVersion.find_last_not_of(' ') + 1);
-    // 剩余字符串应该只有1个
+    // 剩余字符串应该只有1个空格
     int loc = baseVersion.find_first_of(' ');
     if (loc < 0 || loc != baseVersion.find_last_of(' ')) {
         return false;
