@@ -2,7 +2,11 @@
 #include "check.h"
 
 using namespace std;
-namespace testcase {
+using namespace test_case;
+using namespace hiai_check;
+using namespace test_util;
+using namespace ir_model;
+namespace test_case {
 bool CheckResult() {
     return true;
 }
@@ -127,9 +131,6 @@ bool BuildResizeBilinearGraph(ge::Graph& graph) {
     return true;
 }
 }
-
-using namespace testcase;
-using namespace hiaicheck;
 
 int main(int argc, char* argv[]) {
     ALOGE("=========== RUN TestCase ===========\n");

@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 using namespace std;
-namespace hiaicheck {
+namespace hiai_check {
 static const int VERSION_LEN = 4;
 static unordered_map<string, array<int, VERSION_LEN>> g_supportedEMUI{
     {"TAS", {11, 0, 0, 145}}, // M30

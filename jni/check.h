@@ -5,7 +5,7 @@
 #ifndef BUILD_IR_MODEL_CHECK_H
 #define BUILD_IR_MODEL_CHECK_H
 
-namespace hiaicheck {
+namespace hiai_check {
 bool Check();
 }
 
