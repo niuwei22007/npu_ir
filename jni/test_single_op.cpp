@@ -135,9 +135,9 @@ bool BuildResizeBilinearGraph(ge::Graph& graph) {
 int main(int argc, char* argv[]) {
     ALOGE("=========== RUN TestCase ===========\n");
     TestCase caseList[] = {
-        // {"sqrt_ir",             BuildSqrtGraph,           false},
+        {"sqrt_ir",             BuildSqrtGraph,           false},
         // {"convtranspose_ir",    BuildConvTransposeGraph,  false},
-        {"resizebilinearv2_ir", BuildResizeBilinearGraph, false},
+        // {"resizebilinearv2_ir", BuildResizeBilinearGraph, false},
     };
     for (const TestCase& tc : caseList) {
         Test(tc);

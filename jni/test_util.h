@@ -36,6 +36,9 @@
     __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__); \
     printf(__VA_ARGS__)
 
+static const int SUCCESS = 0;
+static const int FAILED = -1;
+
 namespace test_case {
 typedef bool(* TestFunc)(ge::Graph& graph);
 
@@ -309,6 +312,175 @@ std::shared_ptr<hiai::AiModelMngerClient> Build(
     }
     irBuild.ReleaseModelBuff(omModelBuf);
     return client;
+}
+}
+
+namespace om_model {
+static std::map<std::string, int> g_modelNameMap;
+using VecAiTensor = std::vector<std::shared_ptr<hiai::AiTensor>>;
+using VecTensorDim = std::vector<hiai::TensorDimension>;
+using VecVecAiTensor = std::vector<VecAiTensor>;
+
+int UpdateTensorVec(std::string& modelName, VecVecAiTensor& modelTensors, VecTensorDim& modelDims, bool useAipp) {
+    VecAiTensor tensors;
+    int ret;
+    for (const auto& inDim : modelDims) {
+        std::shared_ptr<hiai::AiTensor> input = std::make_shared<hiai::AiTensor>();
+        if (useAipp) {
+            ret = input->Init(inDim.GetNumber(), inDim.GetHeight(), inDim.GetWidth(), hiai::AiTensorImage_YUV420SP_U8);
+            ALOGI("[HIAI_DEMO_SYNC] model %s uses AIPP(input).", modelName.c_str());
+        } else {
+            ret = input->Init(&inDim);
+            ALOGI("[HIAI_DEMO_SYNC] model %s does not use AIPP(input).", modelName.c_str());
+        }
+        if (ret != SUCCESS) {
+            ALOGE("[HIAI_DEMO_SYNC] model %s AiTensor Init failed(input).", modelName.c_str());
+            return FAILED;
+        }
+        tensors.push_back(input);
+    }
+    modelTensors.push_back(tensors);
+    if (modelTensors.empty()) {
+        ALOGE("[HIAI_DEMO_SYNC] input_tensor is empty");
+        return FAILED;
+    }
+    return SUCCESS;
+}
+
+void ResourceDestroy(std::shared_ptr<hiai::AiModelBuilder>& modelBuilder, std::vector<hiai::MemBuffer*>& memBuffers) {
+    if (modelBuilder == nullptr) {
+        ALOGE("[HIAI_DEMO_SYNC] modelBuilder is null.");
+        return;
+    }
+
+    for (auto tmpBuffer : memBuffers) {
+        modelBuilder->MemBufferDestroy(tmpBuffer);
+    }
+}
+
+int LoadSync(std::vector<std::string>& names,
+             std::vector<std::string>& modelPaths,
+             std::shared_ptr<hiai::AiModelMngerClient>& client) {
+    std::vector<std::shared_ptr<hiai::AiModelDescription>> modelDescs;
+    std::vector<hiai::MemBuffer*> memBuffers;
+    std::shared_ptr<hiai::AiModelBuilder> modelBuilder = std::make_shared<hiai::AiModelBuilder>(client);
+    if (modelBuilder == nullptr) {
+        ALOGI("[HIAI_DEMO_SYNC] creat modelBuilder failed.");
+        return FAILED;
+    }
+
+    for (size_t i = 0; i < modelPaths.size(); ++i) {
+        std::string modelPath = modelPaths[i];
+        std::string modelName = names[i];
+        g_modelNameMap[modelName] = i;
+
+        // We can achieve the optimization by loading model from OM file.
+        ALOGI("[HIAI_DEMO_SYNC] modelpath is %s\n.", modelPath.c_str());
+        hiai::MemBuffer* buffer = modelBuilder->InputMemBufferCreate(modelPath);
+        if (buffer == nullptr) {
+            ALOGE("[HIAI_DEMO_SYNC] cannot find the model file.");
+            return FAILED;
+        }
+        memBuffers.push_back(buffer);
+
+        std::string modelNameFull = std::string(modelName) + std::string(".om");
+        std::shared_ptr<hiai::AiModelDescription> desc =
+            std::make_shared<hiai::AiModelDescription>(modelNameFull,
+                                                       hiai::AiModelDescription_Frequency_HIGH,
+                                                       hiai::HIAI_FRAMEWORK_NONE,
+                                                       hiai::HIAI_MODELTYPE_ONLINE,
+                                                       hiai::AiModelDescription_DeviceType_NPU);
+        if (desc == nullptr) {
+            ALOGE("[HIAI_DEMO_SYNC] LoadModelSync: desc make_shared error.");
+            ResourceDestroy(modelBuilder, memBuffers);
+            return FAILED;
+        }
+        desc->SetModelBuffer(buffer->GetMemBufferData(), buffer->GetMemBufferSize());
+
+        ALOGE("[HIAI_DEMO_SYNC] loadModel %s IO Tensor.", desc->GetName().c_str());
+        modelDescs.push_back(desc);
+    }
+
+    int ret = client->Load(modelDescs);
+    ResourceDestroy(modelBuilder, memBuffers);
+    if (ret != SUCCESS) {
+        ALOGE("[HIAI_DEMO_SYNC] Model Load Failed.");
+        return FAILED;
+    }
+    return SUCCESS;
+}
+
+std::shared_ptr<hiai::AiModelMngerClient> LoadModelSync(std::vector<std::string>& names,
+                                                        std::vector<std::string>& modelPaths,
+                                                        VecVecAiTensor& modelsInputs,
+                                                        VecVecAiTensor& modelsOutputs,
+                                                        std::vector<bool>& aipps) {
+    std::shared_ptr<hiai::AiModelMngerClient> clientSync = std::make_shared<hiai::AiModelMngerClient>();
+    if (clientSync == nullptr) {
+        ALOGE("[HIAI_DEMO_SYNC] Model Manager Client make_shared error.");
+        return nullptr;
+    }
+    int ret = clientSync->Init(nullptr);
+    if (ret != SUCCESS) {
+        ALOGE("[HIAI_DEMO_SYNC] Model Manager Init Failed.");
+        return nullptr;
+    }
+    ret = LoadSync(names, modelPaths, clientSync);
+    if (ret != SUCCESS) {
+        ALOGE("[HIAI_DEMO_ASYNC] LoadSync Failed.");
+        return nullptr;
+    }
+
+    modelsInputs.clear();
+    modelsOutputs.clear();
+    for (size_t i = 0; i < names.size(); ++i) {
+        std::string modelName = names[i];
+        bool isUseAipp = !aipps.empty() && aipps[i];
+        ALOGI("[HIAI_DEMO_SYNC] Get model %s IO Tensor. Use AIPP %d", modelName.c_str(), isUseAipp);
+        std::vector<hiai::TensorDimension> inputDims, outputDims;
+        ret = clientSync->GetModelIOTensorDim(std::string(modelName) + std::string(".om"), inputDims, outputDims);
+        if (ret != SUCCESS) {
+            ALOGE("[HIAI_DEMO_SYNC] Get Model IO Tensor Dimension failed,ret is %d.", ret);
+            return nullptr;
+        }
+        if (inputDims.empty()) {
+            ALOGE("[HIAI_DEMO_SYNC] inputDims is empty.");
+            return nullptr;
+        }
+        if (UpdateTensorVec(modelName, modelsInputs, inputDims, isUseAipp) != SUCCESS) {
+            return nullptr;
+        }
+        if (UpdateTensorVec(modelName, modelsOutputs, outputDims, false) != SUCCESS) {
+            return nullptr;
+        }
+    }
+    return clientSync;
+}
+
+hiai::AIStatus Process(std::shared_ptr<hiai::AiModelMngerClient>& client,
+                       std::string& name,
+                       VecAiTensor& inputs,
+                       VecAiTensor& outputs) {
+    hiai::AiContext context;
+    std::string key = "model_name";
+    std::string value = name;
+    value += ".om";
+    context.AddPara(key, value);
+    ALOGI("[HIAI_DEMO_SYNC] runModel modelname: %s", value.c_str());
+    // before process
+    struct timeval tpstart, tpend;
+    gettimeofday(&tpstart, nullptr);
+    int istamp;
+    int ret = client->Process(context, inputs, outputs, 1000, istamp);
+    if (ret != SUCCESS) {
+        ALOGE("[HIAI_DEMO_SYNC] Runmodel Failed!, ret=%d\n", ret);
+        return ret;
+    }
+    // after process
+    gettimeofday(&tpend, nullptr);
+    float timeUse = 1000000 * (tpend.tv_sec - tpstart.tv_sec) + tpend.tv_usec - tpstart.tv_usec;
+    ALOGI("[HIAI_DEMO_SYNC] inference time %f ms.\n", timeUse / 1000);
+    return hiai::AI_SUCCESS;
 }
 }
 
